@@ -1,0 +1,11 @@
+{
+  "name": "upk-college-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": ".venv/bin/python app.py",
+    "start": ".venv/bin/python app.py",
+    "test": ".venv/bin/python -m unittest discover -s tests -v"
+  },
+  "description": "Цифровой помощник колледжа: Python + Flask + SQLite. Интерфейс без сборки."
+}
