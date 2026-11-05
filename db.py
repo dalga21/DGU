@@ -1,6 +1,7 @@
 import hashlib
 import secrets
 import sqlite3
+import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from flask import current_app, g
@@ -30,7 +31,11 @@ def initialize(app):
   if db.execute('SELECT count(*) FROM users').fetchone()[0]: return
   accounts=[]
   for name,login,role in [('Администратор УПК','admin','admin'),('Али Магомедов','staff','staff'),('Марина Алиева','technician','staff')]:
-   password=secrets.token_urlsafe(12)
+   password = (
+    os.getenv('ADMIN_INITIAL_PASSWORD')
+    if login == 'admin'
+    else None
+) or secrets.token_urlsafe(12)
    db.execute('INSERT INTO users(name,login,password_hash,role) VALUES(?,?,?,?)',(name,login,generate_password_hash(password),role))
    accounts.append(f'{name}: логин {login} | пароль {password}')
   db.executemany('INSERT INTO categories VALUES(?,?,?,?)', [('equipment','Оборудование','monitor',2),('network','Интернет и связь','wifi',2),('electric','Электрика','bolt',3),('property','Имущество','chair',3),('cleaning','Уборка','sparkles',3),('plumbing','Сантехника','drop',3),('other','Другое','grid',None)])
