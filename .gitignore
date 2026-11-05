@@ -1,0 +1,11 @@
+.venv/
+.data/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+test-results/
+.coverage
+release/
+.env.local

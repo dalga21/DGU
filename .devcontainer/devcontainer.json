@@ -1,0 +1,9 @@
+{
+  "name": "УПК — Python 3.12",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "postCreateCommand": "python -m venv .venv && .venv/bin/python -m pip install -r requirements.txt",
+  "forwardPorts": [8000],
+  "portsAttributes": { "8000": { "label": "Цифровой помощник УПК", "onAutoForward": "openPreview" } },
+  "containerEnv": { "HOST": "0.0.0.0", "PORT": "8000", "COOKIE_SECURE": "1" },
+  "customizations": { "vscode": { "settings": { "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python" } } }
+}
