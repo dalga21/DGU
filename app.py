@@ -25,6 +25,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from assistant import KNOWLEDGE, classify
+from groq_chat import DEFAULT_MODEL, GroqChat, validate_history
 from db import STATUSES, PRIORITIES, TRANSITIONS, close_db, digest, get_db, initialize, now
 
 ROOT=Path(__file__).resolve().parent
@@ -40,6 +41,8 @@ def load_env():
 def public_base_url():
  explicit=os.getenv('PUBLIC_BASE_URL','').rstrip('/')
  if explicit: return explicit
+ render_url=os.getenv('RENDER_EXTERNAL_URL','').rstrip('/')
+ if render_url: return render_url
  codespace=os.getenv('CODESPACE_NAME'); domain=os.getenv('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN')
  if codespace and domain: return f'https://{codespace}-{os.getenv("PORT","8000")}.{domain}'
  return request.host_url.rstrip('/')
@@ -99,8 +102,13 @@ def normalized_photo(encoded):
 def create_app(test_config=None):
  load_env()
  app=Flask(__name__,static_folder='static',static_url_path='/static')
- app.config.update(DATA_DIR=str(ROOT/'.data'),DATABASE=str(ROOT/'.data/upk.sqlite3'),TESTING=False,SEED_DEMO=True,MAX_CONTENT_LENGTH=8*1024*1024)
+ data_dir=Path(os.getenv('UPK_DATA_DIR') or ROOT/'.data')
+ app.config.update(DATA_DIR=str(data_dir),DATABASE=str(data_dir/'upk.sqlite3'),TESTING=False,SEED_DEMO=True,MAX_CONTENT_LENGTH=8*1024*1024)
  if test_config: app.config.update(test_config)
+ # Tests never use a real key from the developer's .env unless explicitly injected.
+ groq_key=(test_config or {}).get('GROQ_API_KEY','' if app.testing else os.getenv('GROQ_API_KEY',''))
+ groq_model=(test_config or {}).get('GROQ_MODEL',DEFAULT_MODEL if app.testing else os.getenv('GROQ_MODEL',DEFAULT_MODEL))
+ app.extensions['groq_chat']=GroqChat(groq_key,groq_model)
  directory=Path(app.config['DATA_DIR']); directory.mkdir(parents=True,exist_ok=True); directory.chmod(0o700)
  (directory/'uploads').mkdir(exist_ok=True)
  secret_path=directory/'server-secret'
@@ -197,7 +205,8 @@ def create_app(test_config=None):
  @app.get('/api/meta')
  def meta():
   db=get_db()
-  return jsonify(user=g.user,categories=[dict(x) for x in db.execute('SELECT id,name,icon FROM categories')],locations=[dict(x) for x in db.execute('SELECT * FROM locations ORDER BY building,floor,room')],statuses=STATUSES,priorities=PRIORITIES,knowledge=KNOWLEDGE,ai_mode='demo',photo_mode='connected' if all(os.getenv(x) for x in ('VISION_API_URL','VISION_API_KEY','VISION_MODEL')) else 'demo',notification_mode='configured' if os.getenv('NOTIFICATIONS_ENABLED')=='1' else 'demo',public_base_url=public_base_url())
+  chat=app.extensions['groq_chat']
+  return jsonify(user=g.user,categories=[dict(x) for x in db.execute('SELECT id,name,icon FROM categories')],locations=[dict(x) for x in db.execute('SELECT * FROM locations ORDER BY building,floor,room')],statuses=STATUSES,priorities=PRIORITIES,knowledge=KNOWLEDGE,ai_mode='groq' if chat.enabled else 'demo',ai_model=chat.model if chat.enabled else None,photo_mode='connected' if all(os.getenv(x) for x in ('VISION_API_URL','VISION_API_KEY','VISION_MODEL')) else 'demo',notification_mode='configured' if os.getenv('NOTIFICATIONS_ENABLED')=='1' else 'demo',public_base_url=public_base_url())
  @app.post('/api/login')
  def login():
   rate('login',10); data=payload(); login=text_field(data,'login',1,80); password=text_field(data,'password',1,200)
@@ -218,7 +227,10 @@ def create_app(test_config=None):
   response=jsonify(ok=True); response.delete_cookie('upk_session'); return response
  @app.post('/api/assistant')
  def assistant():
-  rate('assistant',40); message=text_field(payload(),'text',2,4000); answer=classify(message)
+  rate('assistant',40); data=payload(); message=text_field(data,'text',2,4000)
+  try: history=validate_history(data.get('history',[]))
+  except ValueError as error: raise Problem(str(error))
+  answer=app.extensions['groq_chat'].answer(message,history)
   db=get_db(); db.execute('INSERT INTO ai_runs(kind,category_id,created_at) VALUES(?,?,?)',(answer['kind'],answer['category'],now())); db.commit()
   return jsonify(answer)
  @app.post('/api/photo-analysis')

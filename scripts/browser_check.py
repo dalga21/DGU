@@ -22,7 +22,7 @@ def main():
   password=re.search(r'логин admin \| пароль (\S+)',Path(tmp,'demo-accounts.txt').read_text())[1]
   server=make_server('127.0.0.1',0,app,threaded=True)
   thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start();base=f'http://127.0.0.1:{server.server_port}'
-  screenshots=ROOT/'docs/screenshots';screenshots.mkdir(exist_ok=True)
+  screenshots=Path(os.getenv('UPK_SCREENSHOT_DIR',str(ROOT/'docs/screenshots')));screenshots.mkdir(parents=True,exist_ok=True)
   try:
    with sync_playwright() as p:
     options={'headless':True}

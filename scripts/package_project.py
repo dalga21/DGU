@@ -5,7 +5,7 @@ from zipfile import ZipFile,ZIP_DEFLATED
 root=Path(__file__).resolve().parents[1]
 out=root/'release';out.mkdir(exist_ok=True)
 archive=out/'upk-github.zip'
-files=['app.py','assistant.py','db.py','integrations.py','schema.sql','package.json','requirements.txt','requirements-dev.txt','README.md','.gitignore','.env.example']
+files=['app.py','assistant.py','groq_chat.py','db.py','integrations.py','schema.sql','package.json','requirements.txt','requirements-dev.txt','README.md','.gitignore','.env.example']
 folders=['static','docs','scripts','tests','.devcontainer','.github']
 paths=[root/p for p in files]
 for name in folders:

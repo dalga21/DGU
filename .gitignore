@@ -9,3 +9,5 @@ test-results/
 .coverage
 release/
 .env.local
+.env.*
+!.env.example

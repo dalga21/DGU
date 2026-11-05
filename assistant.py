@@ -1,4 +1,4 @@
-"""Transparent, deterministic demo assistant. Does not pretend to be an LLM."""
+"""Local classification, safety replies and verified knowledge for Groq chat."""
 import re
 
 SOURCE = '«Инструкции для кейса-1», предоставлены организатором'
@@ -22,7 +22,7 @@ KNOWLEDGE = [
 def classify(text):
  t = text.lower().replace('ё', 'е').strip()
  r = dict(mode='demo', kind='unknown', confidence='low', category='other', priority='normal', title=text.strip()[:100], message='В проверенной базе недостаточно информации. Уточните вопрос или передайте его сотруднику УПК.', should_create=True, knowledge_id=None, source=None)
- if re.search(r'искр|дым|горит|гари|пожар|оголен|током|замкнул|затоп|прорвало|(?:ремонт|замен|помен|чин|разобра|вскры|обойти|отключить защит).{0,35}(?:проводк|розет|электр|блок питан|защит)', t):
+ if re.search(r'\b(?:искр\w*|(?:за)?дым\w*|горит|горят|гари|пожар\w*|оголен\w*|током|замкнул\w*|затоп\w*|прорвало)\b|(?:ремонт|замен|помен|чин|разобра|вскры|обойти|отключить защит).{0,35}(?:проводк|розет|электр|блок питан|защит)', t):
   r.update(kind='danger', confidence='high', category='plumbing' if re.search('затоп|прорвало', t) else 'electric', priority='urgent', message='Отойдите от опасного места, не трогайте оборудование и не пытайтесь ремонтировать его. Немедленно сообщите ответственному сотруднику; при непосредственной угрозе обратитесь в экстренную службу. Заявка не заменяет срочное сообщение об опасности.')
   return r
  if re.search(r'парол|секрет|токен|ключ доступа', t):
